@@ -38,6 +38,7 @@ const ContributionCalendar = ({ username, token }) => {
   });
   const [selectedButton, setSelectedButton] = useState<string>("lastYear");
   const [selectedTheme, setSelectedTheme] = useState<string>("classic");
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -157,6 +158,18 @@ const ContributionCalendar = ({ username, token }) => {
     }
   };
 
+  const handleTooltipClick = (date: string) => {
+    setActiveTooltip(activeTooltip === date ? null : date);
+  };
+
+  const handleTooltipMouseEnter = (date: string) => {
+    setActiveTooltip(date);
+  };
+
+  const handleTooltipMouseLeave = () => {
+    setActiveTooltip(null);
+  };
+
   if (isLoading) {
     return (
       <Card className="p-6 w-full animate-fadeIn">
@@ -270,31 +283,43 @@ const ContributionCalendar = ({ username, token }) => {
                     <div className="grid grid-flow-col gap-1">
                       {getWeeks().map((week, weekIndex) => (
                         <div key={weekIndex} className="grid grid-rows-7 gap-1">
-                          {getDaysInWeek(week).map((day, dayIndex) => (
-                            <Tooltip key={`${weekIndex}-${dayIndex}`}>
-                              <TooltipTrigger>
-                                <div
-                                  className={`w-4 h-4 rounded-sm transition-colors duration-200`}
-                                  style={{
-                                    backgroundColor: getContributionLevel(
-                                      getContributionForDate(day)
-                                    ),
-                                  }}
-                                />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <div className="text-sm">
-                                  <div>{format(day, "MMMM d, yyyy")}</div>
-                                  <div>
-                                    {getContributionForDate(day)} contribution
-                                    {getContributionForDate(day) !== 1
-                                      ? "s"
-                                      : ""}
+                          {getDaysInWeek(week).map((day, dayIndex) => {
+                            const dateStr = format(day, "yyyy-MM-dd");
+                            return (
+                              <Tooltip
+                                key={`${weekIndex}-${dayIndex}`}
+                                isOpen={activeTooltip === dateStr}
+                              >
+                                <TooltipTrigger
+                                  onClick={() => handleTooltipClick(dateStr)}
+                                  onMouseEnter={() =>
+                                    handleTooltipMouseEnter(dateStr)
+                                  }
+                                  onMouseLeave={handleTooltipMouseLeave}
+                                >
+                                  <div
+                                    className={`w-4 h-4 rounded-sm transition-colors duration-200`}
+                                    style={{
+                                      backgroundColor: getContributionLevel(
+                                        getContributionForDate(day)
+                                      ),
+                                    }}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <div className="text-sm">
+                                    <div>{format(day, "MMMM d, yyyy")}</div>
+                                    <div>
+                                      {getContributionForDate(day)} contribution
+                                      {getContributionForDate(day) !== 1
+                                        ? "s"
+                                        : ""}
+                                    </div>
                                   </div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          ))}
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
                         </div>
                       ))}
                     </div>
