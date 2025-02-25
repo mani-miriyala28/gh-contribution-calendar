@@ -39,6 +39,8 @@ const ContributionCalendar = ({ username, token }) => {
   const [selectedButton, setSelectedButton] = useState<string>("lastYear");
   const [selectedTheme, setSelectedTheme] = useState<string>("classic");
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [highlightedCell, setHighlightedCell] = useState<string | null>(null);
+  const [pinnedTooltip, setPinnedTooltip] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -159,16 +161,50 @@ const ContributionCalendar = ({ username, token }) => {
   };
 
   const handleTooltipClick = (date: string) => {
-    setActiveTooltip(activeTooltip === date ? null : date);
+    if (pinnedTooltip === date) {
+      setPinnedTooltip(null);
+      setActiveTooltip(null);
+      setHighlightedCell(null);
+    } else if (!pinnedTooltip) {
+      setActiveTooltip(activeTooltip === date ? null : date);
+    }
   };
 
   const handleTooltipMouseEnter = (date: string) => {
-    setActiveTooltip(date);
+    if (!pinnedTooltip) {
+      setActiveTooltip(date);
+    }
   };
 
   const handleTooltipMouseLeave = () => {
-    setActiveTooltip(null);
+    if (!pinnedTooltip) {
+      setActiveTooltip(null);
+    }
   };
+
+  const handleDoubleClick = (date: string) => {
+    if (pinnedTooltip === date) {
+      setPinnedTooltip(null);
+      setHighlightedCell(null);
+      setActiveTooltip(null);
+    } else {
+      setPinnedTooltip(date);
+      setHighlightedCell(date);
+      setActiveTooltip(date);
+    }
+  };
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".contribution-grid")) {
+        setPinnedTooltip(null);
+        setHighlightedCell(null);
+        setActiveTooltip(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return (
@@ -191,7 +227,6 @@ const ContributionCalendar = ({ username, token }) => {
       </Card>
     );
   }
-
   return (
     <>
       <ContributionCalendarHeader
@@ -253,15 +288,13 @@ const ContributionCalendar = ({ username, token }) => {
               </select>
             </div>
           </div>
-
           <div className="text-center text-lg font-semibold">
             {getTotalContributions()} contributions in {selectedButton}
           </div>
-
           <div className="space-y-2 overflow-x-auto">
             <div className="flex min-w-[1000px]">
               <div className="w-16">
-                <div className="h-3" /> {/* Spacer for alignment */}
+                <div className="h-3" />
                 <div className="grid grid-rows-7 gap-1 text-xs text-neutral pt-3">
                   <div>SUN</div>
                   <div className="invisible">MON</div>
@@ -278,31 +311,43 @@ const ContributionCalendar = ({ username, token }) => {
                     <div key={month}>{month}</div>
                   ))}
                 </div>
-                <div className="relative">
+                <div className="relative contribution-grid">
                   <TooltipProvider>
                     <div className="grid grid-flow-col gap-1">
                       {getWeeks().map((week, weekIndex) => (
                         <div key={weekIndex} className="grid grid-rows-7 gap-1">
                           {getDaysInWeek(week).map((day, dayIndex) => {
                             const dateStr = format(day, "yyyy-MM-dd");
+                            const isHighlighted = highlightedCell === dateStr;
+                            const isFaded = highlightedCell && !isHighlighted;
+                            const isPinned = pinnedTooltip === dateStr;
+
                             return (
                               <Tooltip
                                 key={`${weekIndex}-${dayIndex}`}
-                                isOpen={activeTooltip === dateStr}
+                                open={isPinned || activeTooltip === dateStr}
                               >
                                 <TooltipTrigger
                                   onClick={() => handleTooltipClick(dateStr)}
+                                  onDoubleClick={() =>
+                                    handleDoubleClick(dateStr)
+                                  }
                                   onMouseEnter={() =>
                                     handleTooltipMouseEnter(dateStr)
                                   }
                                   onMouseLeave={handleTooltipMouseLeave}
                                 >
                                   <div
-                                    className={`w-4 h-4 rounded-sm transition-colors duration-200`}
+                                    className={`w-4 h-4 rounded-sm transition-colors duration-200 ${
+                                      isFaded ? "opacity-50" : ""
+                                    }`}
                                     style={{
                                       backgroundColor: getContributionLevel(
                                         getContributionForDate(day)
                                       ),
+                                      border: isHighlighted
+                                        ? "2px solid #000"
+                                        : "none",
                                     }}
                                   />
                                 </TooltipTrigger>
@@ -328,7 +373,6 @@ const ContributionCalendar = ({ username, token }) => {
               </div>
             </div>
           </div>
-
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-center text-sm">
               Last contributed on: {getLastContributionDate(contributions)}
@@ -353,5 +397,4 @@ const ContributionCalendar = ({ username, token }) => {
     </>
   );
 };
-
 export default ContributionCalendar;
