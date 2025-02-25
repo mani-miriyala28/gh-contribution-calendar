@@ -1,0 +1,88 @@
+const themes = {
+  classic: {
+    noContributions: "rgba(155, 155, 155, 0.2)",
+    low: "#8CE89A",
+    moderate: "#3ACC6C",
+    high: "#33B54A",
+    veryHigh: "#1C8B2E",
+  },
+  aurora: {
+    noContributions: "rgba(180, 220, 250, 0.2)",
+    low: "#6FB8D7",
+    moderate: "#8BCFF6",
+    high: "#A3E4FB",
+    veryHigh: "#B5F2FD",
+  },
+  velvet: {
+    noContributions: "rgba(200, 130, 170, 0.2)",
+    low: "#9D4290",
+    moderate: "#D069A7",
+    high: "#F38AC7",
+    veryHigh: "#F9B7DB",
+  },
+  forest: {
+    noContributions: "rgba(140, 200, 180, 0.2)",
+    low: "#5B9075",
+    moderate: "#7CCDA1",
+    high: "#A0E3B5",
+    veryHigh: "#B9F1D6",
+  },
+  crimson: {
+    noContributions: "rgba(255, 160, 160, 0.2)",
+    low: "#E84D47",
+    moderate: "#F37874",
+    high: "#F89F9F",
+    veryHigh: "#FDC5C5",
+  },
+  solar: {
+    noContributions: "rgba(240, 170, 90, 0.2)",
+    low: "#FF9B4D",
+    moderate: "#FFB85D",
+    high: "#FFD46A",
+    veryHigh: "#FFF4C6",
+  },
+  prism: {
+    noContributions: "rgba(255, 200, 220, 0.2)",
+    low: "#FF6BB6",
+    moderate: "#FF9C3D",
+    high: "#5BCBFF",
+    veryHigh: "#8AF398",
+  },
+  galaxy: {
+    noContributions: "rgba(190, 130, 230, 0.2)",
+    low: "#8E5BB7",
+    moderate: "#9D5FDB",
+    high: "#E0569E",
+    veryHigh: "#F3794A",
+  },
+  pastel: {
+    noContributions: "rgba(255, 210, 220, 0.2)",
+    low: "#FFB2D5",
+    moderate: "#FFEA6C",
+    high: "#B3F8B3",
+    veryHigh: "#B2F1FF",
+  },
+  monotone: {
+    noContributions: "rgba(211, 211, 211, 0.2)",
+    low: "#B9B9B9",
+    moderate: "#9B9B9B",
+    high: "#6B6B6B",
+    veryHigh: "#4B4B4B",
+  },
+  prison: {
+    noContributions: "rgba(160, 200, 240, 0.2)",
+    low: "#89CFF0",
+    moderate: "#7FFFD4",
+    high: "#00FFFF",
+    veryHigh: "#007FFF",
+  },
+  chocolate: {
+    noContributions: "#F8D1D1",
+    low: "#BF6C6E",
+    moderate: "#9D4A50",
+    high: "#58111A",
+    veryHigh: "#4E2A1F",
+  },
+};
+
+export default themes;
