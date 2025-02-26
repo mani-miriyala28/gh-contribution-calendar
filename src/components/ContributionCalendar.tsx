@@ -346,7 +346,7 @@ const ContributionCalendar = ({ username, token }) => {
                                         getContributionForDate(day)
                                       ),
                                       border: isHighlighted
-                                        ? "2px solid #000"
+                                        ? "1px solid #000"
                                         : "none",
                                     }}
                                   />
