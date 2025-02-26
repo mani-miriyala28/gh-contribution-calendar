@@ -61,8 +61,8 @@ const ContributionCalendar = ({ username, token }) => {
   const getContributionLevel = (count: number) => {
     const theme = themes[selectedTheme];
     if (count === 0) return theme.noContributions;
-    if (count <= 1) return theme.low;
-    if (count <= 3) return theme.moderate;
+    if (count <= 2) return theme.low;
+    if (count <= 4) return theme.moderate;
     if (count <= 6) return theme.high;
     return theme.veryHigh;
   };
@@ -380,7 +380,7 @@ const ContributionCalendar = ({ username, token }) => {
             <div className="flex items-center justify-end space-x-2 text-sm">
               <span className="text-neutral">Less</span>
               <div className="flex space-x-1">
-                {[0, 1, 2, 3, 4].map((level) => (
+                {[0, 2, 4, 6, 8].map((level) => (
                   <div
                     key={level}
                     className={`w-4 h-4 rounded-sm`}
