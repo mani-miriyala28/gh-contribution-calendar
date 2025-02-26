@@ -23,10 +23,6 @@ import ContributionCalendarFooter from "./ContributionCalendarFooter";
 
 const ContributionCalendar = ({ username, token }) => {
   const navigate = useNavigate();
-  const handleLogout = () => {
-    // Clear any stored credentials if needed
-    navigate("/login");
-  };
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<{
@@ -41,10 +37,15 @@ const ContributionCalendar = ({ username, token }) => {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [highlightedCell, setHighlightedCell] = useState<string | null>(null);
   const [pinnedTooltip, setPinnedTooltip] = useState<string | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  const [selectedCell, setSelectedCell] = useState<string | null>(null);
+
+  const handleLogout = () => {
+    navigate("/login");
+  };
 
   useEffect(() => {
     setIsLoading(true);
-    // Simulate loading contributions data for the selected year
     setTimeout(() => {
       fetchGitHubContributions(
         username,
@@ -67,6 +68,22 @@ const ContributionCalendar = ({ username, token }) => {
     return theme.veryHigh;
   };
 
+  const getContributionLevelName = (count: number): string => {
+    if (count === 0) return "noContributions";
+    if (count <= 2) return "low";
+    if (count <= 4) return "moderate";
+    if (count <= 6) return "high";
+    return "veryHigh";
+  };
+
+  const handleLevelClick = (level: string) => {
+    if (selectedLevel === level) {
+      setSelectedLevel(null);
+    } else {
+      setSelectedLevel(level);
+    }
+  };
+
   const getTotalContributions = () => {
     return contributions.reduce((sum, day) => sum + day.count, 0);
   };
@@ -79,7 +96,7 @@ const ContributionCalendar = ({ username, token }) => {
 
     while (current <= end) {
       months.push(format(current, "MMM"));
-      current = addWeeks(current, 4); // Move to the next month
+      current = addWeeks(current, 4);
     }
 
     return months;
@@ -145,9 +162,7 @@ const ContributionCalendar = ({ username, token }) => {
   };
 
   const getDaySuffix = (day: number) => {
-    if (day >= 11 && day <= 13) {
-      return "th";
-    }
+    if (day >= 11 && day <= 13) return "th";
     switch (day % 10) {
       case 1:
         return "st";
@@ -193,6 +208,18 @@ const ContributionCalendar = ({ username, token }) => {
       setActiveTooltip(date);
     }
   };
+
+  const handleCalendarCellClick = (dateStr: string) => {
+    if (selectedCell === dateStr) {
+      setSelectedCell(null);
+      setActiveTooltip(null);
+    } else {
+      setSelectedCell(dateStr);
+      setActiveTooltip(dateStr);
+    }
+    setSelectedLevel(null);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -227,6 +254,7 @@ const ContributionCalendar = ({ username, token }) => {
       </Card>
     );
   }
+
   return (
     <>
       <ContributionCalendarHeader
@@ -318,35 +346,51 @@ const ContributionCalendar = ({ username, token }) => {
                         <div key={weekIndex} className="grid grid-rows-7 gap-1">
                           {getDaysInWeek(week).map((day, dayIndex) => {
                             const dateStr = format(day, "yyyy-MM-dd");
-                            const isHighlighted = highlightedCell === dateStr;
-                            const isFaded = highlightedCell && !isHighlighted;
-                            const isPinned = pinnedTooltip === dateStr;
+                            const contributionCount =
+                              getContributionForDate(day);
+                            const currentLevel =
+                              getContributionLevelName(contributionCount);
+                            const isLevelHighlighted =
+                              selectedLevel === currentLevel;
+                            const isCellHighlighted = selectedCell === dateStr;
+                            const shouldFade =
+                              (selectedLevel && !isLevelHighlighted) ||
+                              (selectedCell && !isCellHighlighted);
 
                             return (
                               <Tooltip
                                 key={`${weekIndex}-${dayIndex}`}
-                                open={isPinned || activeTooltip === dateStr}
+                                open={
+                                  isCellHighlighted || activeTooltip === dateStr
+                                }
                               >
                                 <TooltipTrigger
-                                  onClick={() => handleTooltipClick(dateStr)}
-                                  onDoubleClick={() =>
-                                    handleDoubleClick(dateStr)
+                                  onClick={() =>
+                                    handleCalendarCellClick(dateStr)
                                   }
-                                  onMouseEnter={() =>
-                                    handleTooltipMouseEnter(dateStr)
-                                  }
-                                  onMouseLeave={handleTooltipMouseLeave}
+                                  onMouseEnter={() => {
+                                    if (!selectedCell) {
+                                      setActiveTooltip(dateStr);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (!selectedCell) {
+                                      setActiveTooltip(null);
+                                    }
+                                  }}
                                 >
                                   <div
-                                    className={`w-4 h-4 rounded-sm transition-colors duration-200 ${
-                                      isFaded ? "opacity-50" : ""
-                                    }`}
+                                    className={`w-4 h-4 rounded-sm transition-all duration-200`}
                                     style={{
-                                      backgroundColor: getContributionLevel(
-                                        getContributionForDate(day)
-                                      ),
-                                      border: isHighlighted
-                                        ? "2px solid #000"
+                                      backgroundColor:
+                                        getContributionLevel(contributionCount),
+                                      opacity: shouldFade ? "0.3" : "1",
+                                      transform:
+                                        isLevelHighlighted || isCellHighlighted
+                                          ? "scale(1.1)"
+                                          : "scale(1)",
+                                      border: isCellHighlighted
+                                        ? "2px solid black"
                                         : "none",
                                     }}
                                   />
@@ -355,10 +399,8 @@ const ContributionCalendar = ({ username, token }) => {
                                   <div className="text-sm">
                                     <div>{format(day, "MMMM d, yyyy")}</div>
                                     <div>
-                                      {getContributionForDate(day)} contribution
-                                      {getContributionForDate(day) !== 1
-                                        ? "s"
-                                        : ""}
+                                      {contributionCount} contribution
+                                      {contributionCount !== 1 ? "s" : ""}
                                     </div>
                                   </div>
                                 </TooltipContent>
@@ -380,13 +422,28 @@ const ContributionCalendar = ({ username, token }) => {
             <div className="flex items-center justify-end space-x-2 text-sm">
               <span className="text-neutral">Less</span>
               <div className="flex space-x-1">
-                {[0, 2, 4, 6, 8].map((level) => (
-                  <div
-                    key={level}
-                    className={`w-4 h-4 rounded-sm`}
-                    style={{ backgroundColor: getContributionLevel(level) }}
-                  />
-                ))}
+                {["noContributions", "low", "moderate", "high", "veryHigh"].map(
+                  (level) => (
+                    <div
+                      key={level}
+                      className={`w-4 h-4 rounded-sm cursor-pointer transition-all duration-200`}
+                      style={{
+                        backgroundColor: themes[selectedTheme][level],
+                        transform:
+                          selectedLevel === level ? "scale(1.1)" : "scale(1)",
+                        opacity:
+                          selectedLevel && selectedLevel !== level
+                            ? "0.3"
+                            : "1",
+                        boxShadow:
+                          selectedLevel === level
+                            ? "0 0 0 2px rgba(0,0,0,0.1)"
+                            : "none",
+                      }}
+                      onClick={() => handleLevelClick(level)}
+                    />
+                  )
+                )}
               </div>
               <span className="text-neutral">More</span>
             </div>
@@ -397,4 +454,5 @@ const ContributionCalendar = ({ username, token }) => {
     </>
   );
 };
+
 export default ContributionCalendar;
