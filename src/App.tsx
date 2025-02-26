@@ -36,7 +36,7 @@ const App = () => {
                 )
               }
             />
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
