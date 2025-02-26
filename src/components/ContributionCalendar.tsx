@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card } from "./ui/card";
 import {
   Tooltip,
@@ -20,6 +20,7 @@ import themes from "../utils/theme";
 import { fetchGitHubContributions, Contribution } from "../utils/github";
 import ContributionCalendarHeader from "./ContributionCalendarHeader";
 import ContributionCalendarFooter from "./ContributionCalendarFooter";
+import { throttle, debounce } from "lodash";
 
 const ContributionCalendar = ({ username, token }) => {
   const navigate = useNavigate();
@@ -220,18 +221,64 @@ const ContributionCalendar = ({ username, token }) => {
     setSelectedLevel(null);
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest(".contribution-grid")) {
-        setPinnedTooltip(null);
-        setHighlightedCell(null);
+  const throttledMouseEnter = useCallback(
+    throttle((dateStr: string) => {
+      if (!selectedCell) {
+        setActiveTooltip(dateStr);
+      }
+    }, 100),
+    [selectedCell]
+  );
+
+  const throttledMouseLeave = useCallback(
+    throttle(() => {
+      if (!selectedCell) {
         setActiveTooltip(null);
       }
+    }, 100),
+    [selectedCell]
+  );
+
+  const debouncedCalendarCellClick = useCallback(
+    debounce((dateStr: string) => {
+      if (selectedCell === dateStr) {
+        setSelectedCell(null);
+        setActiveTooltip(null);
+      } else {
+        setSelectedCell(dateStr);
+        setActiveTooltip(dateStr);
+      }
+      setSelectedLevel(null);
+    }, 200),
+    [selectedCell]
+  );
+
+  const debouncedLevelClick = useCallback(
+    debounce((level: string) => {
+      if (selectedLevel === level) {
+        setSelectedLevel(null);
+      } else {
+        setSelectedLevel(level);
+      }
+      setSelectedCell(null);
+      setActiveTooltip(null);
+    }, 200),
+    [selectedLevel]
+  );
+
+  useEffect(() => {
+    return () => {
+      throttledMouseEnter.cancel();
+      throttledMouseLeave.cancel();
+      debouncedCalendarCellClick.cancel();
+      debouncedLevelClick.cancel();
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [
+    throttledMouseEnter,
+    throttledMouseLeave,
+    debouncedCalendarCellClick,
+    debouncedLevelClick,
+  ]);
 
   if (isLoading) {
     return (
@@ -261,7 +308,7 @@ const ContributionCalendar = ({ username, token }) => {
         username={username}
         handleLogout={handleLogout}
       />
-      <Card className="p-6 animate-fadeIn max-w-full">
+      <Card className="p-6 animate-fadeIn max-w-full overflow-hidden">
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center space-x-2">
@@ -366,18 +413,13 @@ const ContributionCalendar = ({ username, token }) => {
                               >
                                 <TooltipTrigger
                                   onClick={() =>
-                                    handleCalendarCellClick(dateStr)
+                                    debouncedCalendarCellClick(dateStr)
                                   }
-                                  onMouseEnter={() => {
-                                    if (!selectedCell) {
-                                      setActiveTooltip(dateStr);
-                                    }
-                                  }}
-                                  onMouseLeave={() => {
-                                    if (!selectedCell) {
-                                      setActiveTooltip(null);
-                                    }
-                                  }}
+                                  onMouseEnter={() =>
+                                    throttledMouseEnter(dateStr)
+                                  }
+                                  onMouseLeave={throttledMouseLeave}
+                                  className="relative"
                                 >
                                   <div
                                     className={`w-4 h-4 rounded-sm transition-all duration-200`}
@@ -395,7 +437,7 @@ const ContributionCalendar = ({ username, token }) => {
                                     }}
                                   />
                                 </TooltipTrigger>
-                                <TooltipContent>
+                                <TooltipContent side="top" className="z-[100]">
                                   <div className="text-sm">
                                     <div>{format(day, "MMMM d, yyyy")}</div>
                                     <div>
@@ -440,7 +482,7 @@ const ContributionCalendar = ({ username, token }) => {
                             ? "0 0 0 2px rgba(0,0,0,0.1)"
                             : "none",
                       }}
-                      onClick={() => handleLevelClick(level)}
+                      onClick={() => debouncedLevelClick(level)}
                     />
                   )
                 )}
