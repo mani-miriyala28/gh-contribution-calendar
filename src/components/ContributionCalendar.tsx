@@ -12,12 +12,25 @@ import {
   eachWeekOfInterval,
   eachDayOfInterval,
   addWeeks,
+  startOfMonth,
+  addDays,
 } from "date-fns";
-import { Calendar } from "lucide-react";
+import {
+  Calendar,
+  GitBranch,
+  GitCommit,
+  GitMerge,
+  GitPullRequest,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
 import themes from "../utils/theme";
-import { fetchGitHubContributions, Contribution } from "../utils/github";
+import {
+  fetchGitHubContributions,
+  fetchContributionDetails,
+  Contribution,
+  ContributionDetails,
+} from "../utils/github";
 import ContributionCalendarHeader from "./ContributionCalendarHeader";
 import ContributionCalendarFooter from "./ContributionCalendarFooter";
 import { throttle, debounce } from "lodash";
@@ -40,6 +53,13 @@ const ContributionCalendar = ({ username, token }) => {
   const [pinnedTooltip, setPinnedTooltip] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const [selectedDayDetails, setSelectedDayDetails] = useState<{
+    date: string;
+    formattedDate: string;
+    contributionCount: number;
+    details: ContributionDetails | null;
+    isLoading: boolean;
+  } | null>(null);
 
   const handleLogout = () => {
     navigate("/login");
@@ -47,6 +67,14 @@ const ContributionCalendar = ({ username, token }) => {
 
   useEffect(() => {
     setIsLoading(true);
+    // Reset all selections when year changes
+    setSelectedLevel(null);
+    setSelectedCell(null);
+    setActiveTooltip(null);
+    setHighlightedCell(null);
+    setPinnedTooltip(null);
+    setSelectedDayDetails(null);
+
     setTimeout(() => {
       fetchGitHubContributions(
         username,
@@ -59,6 +87,41 @@ const ContributionCalendar = ({ username, token }) => {
       });
     }, 1000);
   }, [selectedYear, username, token]);
+
+  // Fetch details when a day is selected
+  useEffect(() => {
+    if (selectedDayDetails && selectedDayDetails.isLoading) {
+      fetchContributionDetails(username, token, selectedDayDetails.date)
+        .then((details) => {
+          setSelectedDayDetails((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  details,
+                  isLoading: false,
+                }
+              : null
+          );
+        })
+        .catch(() => {
+          setSelectedDayDetails((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  details: {
+                    commits: 0,
+                    pullRequests: 0,
+                    mergeRequests: 0,
+                    pushes: 0,
+                    branchesContributed: 0,
+                  },
+                  isLoading: false,
+                }
+              : null
+          );
+        });
+    }
+  }, [selectedDayDetails, username, token]);
 
   const getContributionLevel = (count: number) => {
     const theme = themes[selectedTheme];
@@ -90,17 +153,34 @@ const ContributionCalendar = ({ username, token }) => {
   };
 
   const getMonths = () => {
-    const months = [];
-    const start = selectedYear.startDate;
-    const end = selectedYear.endDate;
-    let current = start;
+    const weeks = getWeeks();
+    if (weeks.length === 0) return [];
 
-    while (current <= end) {
-      months.push(format(current, "MMM"));
-      current = addWeeks(current, 4);
-    }
+    // Find the first day of each month and its position
+    const monthPositions = new Map();
 
-    return months;
+    // Iterate through all weeks and days
+    weeks.forEach((week, weekIndex) => {
+      const daysInWeek = getDaysInWeek(week);
+
+      daysInWeek.forEach((day) => {
+        // If this is the first day of a month
+        if (day.getDate() === 1) {
+          const monthKey = day.getMonth();
+          if (!monthPositions.has(monthKey)) {
+            monthPositions.set(monthKey, {
+              label: format(day, "MMM"),
+              position: weekIndex,
+            });
+          }
+        }
+      });
+    });
+
+    // Convert to array and sort by position
+    return Array.from(monthPositions.values()).sort(
+      (a, b) => a.position - b.position
+    );
   };
 
   const getContributionForDate = (date: Date) => {
@@ -117,8 +197,8 @@ const ContributionCalendar = ({ username, token }) => {
   const getDaysInWeek = (weekStart: Date) => {
     return eachDayOfInterval({
       start: weekStart,
-      end: addWeeks(weekStart, 1),
-    }).slice(0, 7);
+      end: addDays(weekStart, 6),
+    });
   };
 
   const handleYearChange = (startDate: Date, endDate: Date) => {
@@ -210,17 +290,7 @@ const ContributionCalendar = ({ username, token }) => {
     }
   };
 
-  const handleCalendarCellClick = (dateStr: string) => {
-    if (selectedCell === dateStr) {
-      setSelectedCell(null);
-      setActiveTooltip(null);
-    } else {
-      setSelectedCell(dateStr);
-      setActiveTooltip(dateStr);
-    }
-    setSelectedLevel(null);
-  };
-
+  // Throttled mouse handlers
   const throttledMouseEnter = useCallback(
     throttle((dateStr: string) => {
       if (!selectedCell) {
@@ -239,14 +309,23 @@ const ContributionCalendar = ({ username, token }) => {
     [selectedCell]
   );
 
+  // Debounced click handlers
   const debouncedCalendarCellClick = useCallback(
-    debounce((dateStr: string) => {
+    debounce((dateStr: string, day: Date, count: number) => {
       if (selectedCell === dateStr) {
         setSelectedCell(null);
         setActiveTooltip(null);
+        setSelectedDayDetails(null);
       } else {
         setSelectedCell(dateStr);
         setActiveTooltip(dateStr);
+        setSelectedDayDetails({
+          date: dateStr,
+          formattedDate: format(day, "MMMM d, yyyy"),
+          contributionCount: count,
+          details: null,
+          isLoading: true,
+        });
       }
       setSelectedLevel(null);
     }, 200),
@@ -262,6 +341,7 @@ const ContributionCalendar = ({ username, token }) => {
       }
       setSelectedCell(null);
       setActiveTooltip(null);
+      setSelectedDayDetails(null);
     }, 200),
     [selectedLevel]
   );
@@ -301,6 +381,9 @@ const ContributionCalendar = ({ username, token }) => {
       </Card>
     );
   }
+
+  const months = getMonths();
+  const weeks = getWeeks();
 
   return (
     <>
@@ -369,8 +452,8 @@ const ContributionCalendar = ({ username, token }) => {
           <div className="space-y-2 overflow-x-auto">
             <div className="flex min-w-[1000px]">
               <div className="w-16">
-                <div className="h-3" />
-                <div className="grid grid-rows-7 gap-1 text-xs text-neutral pt-3">
+                <div className="h-5" />
+                <div className="grid grid-rows-7 gap-1 text-xs text-neutral ">
                   <div>SUN</div>
                   <div className="invisible">MON</div>
                   <div>TUE</div>
@@ -381,15 +464,24 @@ const ContributionCalendar = ({ username, token }) => {
                 </div>
               </div>
               <div className="flex-1">
-                <div className="flex justify-between text-xs text-neutral mb-2">
-                  {getMonths().map((month) => (
-                    <div key={month}>{month}</div>
+                {/* Month labels with proper alignment to month start */}
+                <div className="h-5 relative">
+                  {months.map((month, i) => (
+                    <div
+                      key={i}
+                      className="absolute text-xs text-neutral"
+                      style={{
+                        left: `${(month.position / (weeks.length - 1)) * 100}%`,
+                      }}
+                    >
+                      {month.label}
+                    </div>
                   ))}
                 </div>
                 <div className="relative contribution-grid">
                   <TooltipProvider>
                     <div className="grid grid-flow-col gap-1">
-                      {getWeeks().map((week, weekIndex) => (
+                      {weeks.map((week, weekIndex) => (
                         <div key={weekIndex} className="grid grid-rows-7 gap-1">
                           {getDaysInWeek(week).map((day, dayIndex) => {
                             const dateStr = format(day, "yyyy-MM-dd");
@@ -413,7 +505,11 @@ const ContributionCalendar = ({ username, token }) => {
                               >
                                 <TooltipTrigger
                                   onClick={() =>
-                                    debouncedCalendarCellClick(dateStr)
+                                    debouncedCalendarCellClick(
+                                      dateStr,
+                                      day,
+                                      contributionCount
+                                    )
                                   }
                                   onMouseEnter={() =>
                                     throttledMouseEnter(dateStr)
@@ -457,6 +553,64 @@ const ContributionCalendar = ({ username, token }) => {
               </div>
             </div>
           </div>
+
+          {/* Selected day contribution details */}
+          {selectedDayDetails && (
+            <div className="p-4 bg-accent rounded-md">
+              <h3 className="font-medium text-lg">
+                {selectedDayDetails.formattedDate}
+              </h3>
+
+              {selectedDayDetails.isLoading ? (
+                <div className="animate-pulse space-y-2 mt-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              ) : selectedDayDetails.contributionCount === 0 ? (
+                <p className="text-muted-foreground mt-1">
+                  No activity on this day
+                </p>
+              ) : (
+                <div className="space-y-2 mt-2">
+                  <p className="font-medium">
+                    {selectedDayDetails.contributionCount} total contribution
+                    {selectedDayDetails.contributionCount !== 1 ? "s" : ""}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <GitCommit className="h-4 w-4" />
+                      <span>
+                        {selectedDayDetails.details?.commits || 0} commits
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <GitPullRequest className="h-4 w-4" />
+                      <span>
+                        {selectedDayDetails.details?.pullRequests || 0} pull
+                        requests
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <GitMerge className="h-4 w-4" />
+                      <span>
+                        {selectedDayDetails.details?.mergeRequests || 0} merge
+                        requests
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <GitBranch className="h-4 w-4" />
+                      <span>
+                        {selectedDayDetails.details?.branchesContributed || 0}{" "}
+                        branches
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-center text-sm">
               Last contributed on: {getLastContributionDate(contributions)}
