@@ -453,7 +453,7 @@ const ContributionCalendar = ({ username, token }) => {
             <div className="flex min-w-[1000px]">
               <div className="w-16">
                 <div className="h-5" />
-                <div className="grid grid-rows-7 gap-1 text-xs text-neutral ">
+                <div className="grid grid-rows-7 gap-1 text-xs text-neutral pt-3">
                   <div>SUN</div>
                   <div className="invisible">MON</div>
                   <div>TUE</div>

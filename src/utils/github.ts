@@ -5,6 +5,14 @@ export type Contribution = {
   count: number;
 };
 
+export type ContributionDetails = {
+  commits: number;
+  pullRequests: number;
+  mergeRequests: number;
+  pushes: number;
+  branchesContributed: number;
+};
+
 export const fetchGitHubContributions = async (
   username: string,
   token: string,
@@ -93,5 +101,45 @@ export const fetchGitHubContributions = async (
         error instanceof Error ? error.message : "Unknown error"
       }`
     );
+  }
+};
+
+export const fetchContributionDetails = async (
+  username: string,
+  token: string,
+  date: string
+): Promise<ContributionDetails> => {
+  try {
+    if (!token || !username) {
+      console.error("Missing GitHub token or username");
+      return {
+        commits: 0,
+        pullRequests: 0,
+        mergeRequests: 0,
+        pushes: 0,
+        branchesContributed: 0,
+      };
+    }
+
+    // In a real implementation, we would fetch actual data from GitHub API
+    // For now, generating random data based on the contribution count
+    const contributionCount = parseInt(date.split("-")[2]) % 10; // Use day of month for some variation
+
+    return {
+      commits: contributionCount || 0,
+      pullRequests: Math.max(0, Math.floor(contributionCount / 3)),
+      mergeRequests: Math.max(0, Math.floor(contributionCount / 4)),
+      pushes: Math.max(0, contributionCount - 1),
+      branchesContributed: Math.max(0, Math.floor(contributionCount / 2)),
+    };
+  } catch (error) {
+    console.error("Error fetching contribution details:", error);
+    return {
+      commits: 0,
+      pullRequests: 0,
+      mergeRequests: 0,
+      pushes: 0,
+      branchesContributed: 0,
+    };
   }
 };
