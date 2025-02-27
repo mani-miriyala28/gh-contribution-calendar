@@ -555,7 +555,7 @@ const ContributionCalendar = ({ username, token }) => {
           </div>
 
           {/* Selected day contribution details */}
-          {selectedDayDetails && (
+          {/* {selectedDayDetails && (
             <div className="p-4 bg-accent rounded-md">
               <h3 className="font-medium text-lg">
                 {selectedDayDetails.formattedDate}
@@ -609,7 +609,7 @@ const ContributionCalendar = ({ username, token }) => {
                 </div>
               )}
             </div>
-          )}
+          )} */}
 
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-center text-sm">

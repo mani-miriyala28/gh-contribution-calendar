@@ -6,30 +6,69 @@ import { Input } from "@/components/ui/input";
 import logo from "/logo.png";
 
 const Login = ({ setUsername, setToken }) => {
-  const [username, setUsernameLocal] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [token, setTokenLocal] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const verifyGitHubCredentials = async (username: string, token: string) => {
+  const getIdentifierType = (value) => {
+    // Email regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Phone regex (supports formats like: +1234567890, 123-456-7890, (123) 456-7890)
+
+    //const phoneRegex = /^\+?[\d\s()-]{10,}$/;
+
+    // GitHub username regex (alphanumeric with single hyphens)
+    const usernameRegex = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
+
+    if (emailRegex.test(value)) return "email";
+    //if (phoneRegex.test(value)) return "phone";
+    if (usernameRegex.test(value)) return "username";
+    return "invalid";
+  };
+
+  const verifyGitHubCredentials = async (identifier: string, token: string) => {
     try {
-      const response = await fetch(`https://api.github.com/users/${username}`, {
+      const identifierType = getIdentifierType(identifier);
+
+      // First, verify the token by getting the authenticated user
+      const authResponse = await fetch("https://api.github.com/user", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-
-      if (!response.ok) {
-        if (response.status === 401) {
+      if (!authResponse.ok) {
+        if (authResponse.status === 401) {
           setError("Invalid GitHub token");
-          return false;
-        }
-        if (response.status === 404) {
-          setError("GitHub username not found");
           return false;
         }
         setError("Failed to verify credentials");
         return false;
+      }
+
+      const authData = await authResponse.json();
+      console.log("authResponse", authData, authResponse);
+
+      // Check if the provided identifier matches the token owner's details
+      switch (identifierType) {
+        case "email":
+          if (authData.email !== identifier) {
+            setError("Email does not match the token owner");
+            return false;
+          }
+          break;
+        case "username":
+          if (authData.login.toLowerCase() !== identifier.toLowerCase()) {
+            setError("Username does not match the token owner");
+            return false;
+          }
+          break;
+        // case "phone":
+        //   setError("Phone verification not supported with GitHub directly");
+        //   return false;
+        case "invalid":
+          setError("Invalid identifier format");
+          return false;
       }
 
       return true;
@@ -41,15 +80,37 @@ const Login = ({ setUsername, setToken }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username || !token) {
+    if (!identifier || !token) {
       setError("Both fields are required.");
       return;
     }
-    const isValid = await verifyGitHubCredentials(username, token);
+
+    const identifierType = getIdentifierType(identifier);
+    if (identifierType === "invalid") {
+      setError("Please enter a valid email, phone number, or GitHub username");
+      return;
+    }
+
+    const isValid = await verifyGitHubCredentials(identifier, token);
     if (isValid) {
-      setUsername(username);
+      setUsername(identifier);
       setToken(token);
-      navigate(`/calendar/gh/${username}`);
+      navigate(`/calendar/gh/${identifier}`);
+    }
+  };
+
+  const getIdentifierPlaceholder = () => {
+    if (!identifier) return "Enter email or GitHub username";
+    const type = getIdentifierType(identifier);
+    switch (type) {
+      case "email":
+        return "Email address detected";
+      // case "phone":
+      //   return "Phone number detected";
+      case "username":
+        return "GitHub username detected";
+      default:
+        return "Invalid format";
     }
   };
 
@@ -61,16 +122,22 @@ const Login = ({ setUsername, setToken }) => {
         {error && <div className="text-red-500 text-center">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium">
-              GitHub Username
+            <label htmlFor="identifier" className="block text-sm font-medium">
+              Email / GitHub Username
             </label>
             <Input
-              id="username"
+              id="identifier"
               type="text"
-              value={username}
-              onChange={(e) => setUsernameLocal(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               className="mt-1"
+              placeholder={getIdentifierPlaceholder()}
             />
+            {identifier && (
+              <span className="text-xs text-muted-foreground mt-1 block">
+                {getIdentifierPlaceholder()}
+              </span>
+            )}
           </div>
           <div>
             <label htmlFor="token" className="block text-sm font-medium">
@@ -83,6 +150,9 @@ const Login = ({ setUsername, setToken }) => {
               onChange={(e) => setTokenLocal(e.target.value)}
               className="mt-1"
             />
+            <div className="text-xs text-muted-foreground mt-1">
+              Token must have 'repo' and 'user:email' scopes
+            </div>
           </div>
           <Button type="submit" className="w-full">
             Login
