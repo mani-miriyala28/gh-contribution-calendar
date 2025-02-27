@@ -47,7 +47,7 @@ const ContributionCalendar = ({ username, token }) => {
     endDate: new Date(),
   });
   const [selectedButton, setSelectedButton] = useState<string>("lastYear");
-  const [selectedTheme, setSelectedTheme] = useState<string>("classic");
+  const [selectedTheme, setSelectedTheme] = useState<string>("galaxy");
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [highlightedCell, setHighlightedCell] = useState<string | null>(null);
   const [pinnedTooltip, setPinnedTooltip] = useState<string | null>(null);
